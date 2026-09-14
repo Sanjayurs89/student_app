@@ -1,0 +1,339 @@
+// prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  password         String
+  name             String
+  role             String            // "STUDENT" | "PROFESSOR" | "ADMIN"
+  isOnboarded      Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  
+  // Relations
+  studentProfile   StudentProfile?
+  professorProfile ProfessorProfile?
+  
+  notes            Note[]
+  comments         Comment[]
+  upvotes          Upvote[]
+  bookmarks        Bookmark[]
+  messages         Message[]
+  createdRooms     StudyRoom[]       @relation("CreatedRooms")
+  joinedRooms      StudyRoomMember[]
+  announcements    Announcement[]
+  doubts           Doubt[]
+  doubtAnswers     DoubtAnswer[]
+}
+
+model StudentProfile {
+  id           String                 @id // maps 1:1 with User.id
+  user         User                   @relation(fields: [id], references: [id], onDelete: Cascade)
+  
+  departmentId String
+  department   Department             @relation(fields: [departmentId], references: [id])
+  
+  semester     Int                    // e.g. 1 to 8
+  
+  sectionId    String
+  section      Section                @relation(fields: [sectionId], references: [id])
+  
+  submissions  AssignmentSubmission[]
+}
+
+model ProfessorProfile {
+  id           String                   @id // maps 1:1 with User.id
+  user         User                     @relation(fields: [id], references: [id], onDelete: Cascade)
+  
+  departmentId String
+  department   Department               @relation(fields: [departmentId], references: [id])
+  
+  // Teaching assignments
+  subjects       ProfessorSubjectSection[]
+  timetableSlots TimetableSlot[]
+  assignments    Assignment[]
+}
+
+model Department {
+  id                String             @id @default(uuid())
+  name              String             @unique
+  code              String             @unique // e.g. "CSE", "ECE"
+  
+  // Relations
+  subjects          Subject[]
+  sections          Section[]
+  studentProfiles   StudentProfile[]
+  professorProfiles ProfessorProfile[]
+}
+
+model Subject {
+  id           String                    @id @default(uuid())
+  name         String
+  code         String                    @unique // e.g. "CS101"
+  semester     Int                       // semester this subject belongs to
+  
+  departmentId String
+  department   Department                @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  
+  professors     ProfessorSubjectSection[]
+  notes          Note[]
+  timetableSlots TimetableSlot[]
+  announcements  Announcement[]
+  doubts         Doubt[]
+  assignments    Assignment[]
+}
+
+model Section {
+  id           String                    @id @default(uuid())
+  name         String                    // e.g. "A", "B"
+  semester     Int                       // semester this section belongs to
+  
+  departmentId String
+  department   Department                @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  
+  students       StudentProfile[]
+  professors     ProfessorSubjectSection[]
+  timetableSlots TimetableSlot[]
+  announcements  Announcement[]
+  assignments    Assignment[]
+}
+
+model ProfessorSubjectSection {
+  id          String           @id @default(uuid())
+  
+  professorId String
+  professor   ProfessorProfile @relation(fields: [professorId], references: [id], onDelete: Cascade)
+  
+  subjectId   String
+  subject     Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  
+  sectionId   String
+  section     Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  
+  @@unique([professorId, subjectId, sectionId])
+}
+
+model Note {
+  id             String     @id @default(uuid())
+  title          String
+  content        String?    // text editor content
+  fileUrl        String?    // file upload URL (local server path)
+  fileName       String?
+  fileType       String?
+  description    String?
+  visibility     String     // "PRIVATE" | "ROOM" | "PUBLIC"
+  roomId         String?    // reserved for Phase 4
+  downloadsCount Int        @default(0)
+  isPinned       Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  // Relations
+  subjectId      String
+  subject        Subject    @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  
+  userId         String
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  room           StudyRoom? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  
+  tags           Tag[]      // implicit many-to-many
+  comments       Comment[]
+  upvotes        Upvote[]
+  bookmarks      Bookmark[]
+}
+
+model Tag {
+  id    String @id @default(uuid())
+  name  String @unique
+  
+  // Relations
+  notes Note[]
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  
+  // Relations
+  noteId    String
+  note      Note     @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Upvote {
+  id     String @id @default(uuid())
+  
+  // Relations
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([noteId, userId])
+}
+
+model Bookmark {
+  id     String @id @default(uuid())
+  
+  // Relations
+  noteId String
+  note   Note   @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([noteId, userId])
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  content   String
+  roomId    String
+  createdAt DateTime @default(now())
+  
+  // Relations
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model StudyRoom {
+  id          String            @id @default(uuid())
+  name        String
+  description String?
+  creatorId   String
+  creator     User              @relation("CreatedRooms", fields: [creatorId], references: [id], onDelete: Cascade)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  
+  // Relations
+  members     StudyRoomMember[]
+  notes       Note[]
+}
+
+model StudyRoomMember {
+  id          String            @id @default(uuid())
+  roomId      String
+  room        StudyRoom         @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt    DateTime          @default(now())
+  
+  @@unique([roomId, userId])
+}
+
+model TimetableSlot {
+  id          String           @id @default(uuid())
+  dayOfWeek   String           // "MONDAY" | "TUESDAY" | "WEDNESDAY" | "THURSDAY" | "FRIDAY"
+  startTime   String           // HH:MM (24h)
+  endTime     String           // HH:MM (24h)
+  location    String           // e.g. "Room 302"
+  
+  // Relations
+  subjectId   String
+  subject     Subject          @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  
+  sectionId   String
+  section     Section          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  
+  professorId String
+  professor   ProfessorProfile @relation(fields: [professorId], references: [id], onDelete: Cascade)
+}
+
+model Announcement {
+  id          String   @id @default(uuid())
+  title       String
+  content     String
+  createdAt   DateTime @default(now())
+  
+  // Relations
+  subjectId   String
+  subject     Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  
+  sectionId   String
+  section     Section  @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  
+  senderId    String
+  sender      User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+model Doubt {
+  id          String        @id @default(uuid())
+  title       String
+  content     String
+  createdAt   DateTime      @default(now())
+  
+  // Relations
+  subjectId   String
+  subject     Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  answers     DoubtAnswer[]
+}
+
+model DoubtAnswer {
+  id        String   @id @default(uuid())
+  content   String
+  createdAt DateTime @default(now())
+  
+  // Relations
+  doubtId   String
+  doubt     Doubt    @relation(fields: [doubtId], references: [id], onDelete: Cascade)
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Assignment {
+  id          String               @id @default(uuid())
+  title       String
+  description String?
+  fileUrl     String?              // file upload URL (local server path)
+  fileName    String?
+  dueDate     DateTime
+  createdAt   DateTime             @default(now())
+  
+  // Relations
+  subjectId   String
+  subject     Subject              @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  
+  sectionId   String
+  section     Section              @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  
+  professorId String
+  professor   ProfessorProfile     @relation(fields: [professorId], references: [id], onDelete: Cascade)
+  
+  submissions AssignmentSubmission[]
+}
+
+model AssignmentSubmission {
+  id           String         @id @default(uuid())
+  fileUrl      String
+  fileName     String
+  submittedAt  DateTime       @default(now())
+  grade        String?
+  
+  // Relations
+  studentId    String
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  assignmentId String
+  assignment   Assignment     @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  
+  @@unique([studentId, assignmentId])
+}
