@@ -2,7 +2,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'http://localhost:5000/api',
+  baseURL: `${process.env.NEXT_PUBLIC_API_URL}/api`,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -27,7 +27,7 @@ export const getFileUrl = (fileUrl) => {
   if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
     return fileUrl;
   }
-  return `http://localhost:5000${fileUrl.startsWith('/') ? fileUrl : '/' + fileUrl}`;
+  return `${process.env.NEXT_PUBLIC_API_URL}${fileUrl.startsWith('/') ? fileUrl : '/' + fileUrl}`;
 };
 
 export default API;

@@ -110,7 +110,7 @@ export default function StudyRoomsPage() {
     if (!token || !currentUser) return;
 
     // Connect to Socket.io backend
-    const socket = io('http://localhost:5000', {
+    const socket = io(process.env.NEXT_PUBLIC_API_URL, {
       auth: { token }
     });
 
@@ -658,7 +658,7 @@ export default function StudyRoomsPage() {
                             {/* Download Button (if file exists) */}
                             {note.fileUrl && (
                               <a
-                                href={note.fileUrl.startsWith('http') ? note.fileUrl : `http://localhost:5000${note.fileUrl}`}
+                                href={note.fileUrl.startsWith('http') ? note.fileUrl : `${process.env.NEXT_PUBLIC_API_URL}${note.fileUrl}`}
                                 target="_blank"
                                 rel="noreferrer"
                                 download={note.fileName}

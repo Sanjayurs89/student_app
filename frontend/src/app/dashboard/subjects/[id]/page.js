@@ -679,7 +679,7 @@ export default function SubjectDashboardPage({ params }) {
 
                           {note.fileUrl && (
                             <a
-                              href={note.fileUrl.startsWith('http') ? note.fileUrl : `http://localhost:5000${note.fileUrl}`}
+                              href={note.fileUrl.startsWith('http') ? note.fileUrl : `${process.env.NEXT_PUBLIC_API_URL}${note.fileUrl}`}
                               target="_blank"
                               rel="noreferrer"
                               download={note.fileName}
